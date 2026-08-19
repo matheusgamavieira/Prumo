@@ -483,7 +483,8 @@ button:focus-visible,[tabindex]:focus-visible,input:focus-visible,select:focus-v
 <!-- ============ BIBLIOTECA (subview) ============ -->
 <main class="view" id="view-biblioteca">
   <div class="campo" style="margin-bottom:10px"><input type="text" id="bibBusca" placeholder="Buscar alimento…" aria-label="Buscar alimento"></div>
-  <div class="tpl-chips" id="bibFiltros"></div>
+  <div class="tpl-chips" id="bibFiltrosRef" aria-label="Filtrar por refeição"></div>
+  <div class="tpl-chips" id="bibFiltros" aria-label="Filtrar por tag"></div>
   <div id="listaBiblioteca"></div>
   <button class="btn-cheio" id="btnNovoItem" style="width:100%; margin-top:6px">+ Novo alimento</button>
 </main>
@@ -589,7 +590,7 @@ button:focus-visible,[tabindex]:focus-visible,input:focus-visible,select:focus-v
     <button class="aj-btn perigo" id="btnApagar">Apagar todos os dados</button>
     <p id="txtBackup" style="font-size:12px; color:var(--ink-2); font-weight:600; padding:2px 4px"></p>
   </div>
-  <p class="versao">Prumo · v2.1 · todos os dados ficam neste aparelho</p>
+  <p class="versao">Prumo · v2.2 · todos os dados ficam neste aparelho</p>
 </main>
 
 <!-- ============ ROTINA (subview) ============ -->
@@ -830,7 +831,7 @@ function itensPlanoNutri(){
     return {id:uid(), nome:nome, porcao:porcao, tags:tags, refeicoes:refs, favorito:false, notas:notas||"", arquivado:false};
   }
   return [
-    it("Plano: ovos com mamão e banana-da-terra","1 refeição do plano",["proteico","plano"],["cafe"],"2 ovos cozidos, requeijão light, meia banana-da-terra, meio mamão papaia, aveia e café. Troca do mamão: melão, maçã ou banana."),
+    it("Plano: ovos com mamão e banana-da-terra","1 refeição do plano",["proteico","plano","transportavel"],["cafe"],"2 ovos cozidos, requeijão light, meia banana-da-terra, meio mamão papaia, aveia e café. Troca do mamão: melão, maçã ou banana."),
     it("Plano: ovo mexido com pão francês","1 refeição do plano",["proteico","salgado","plano"],["cafe"],"1 ovo mexido (ou frango desfiado), 1 fatia de bacon, requeijão light, pão francês e café."),
     it("Plano: vitamina de banana com whey","garrafinha ~300 ml",["doce","proteico","transportavel","plano"],["cafe"],"Banana prata, pasta de amendoim, cacau, farinha de aveia, whey e leite desnatado."),
     it("Plano: iogurte com granola, frutas e whey","1 refeição do plano",["proteico","doce","leve","transportavel","plano"],["lanche_manha"],"Iogurte natural 170 g, granola, salada de frutas (laranja, banana, maçã, mamão) e 1 scoop de whey."),
@@ -853,7 +854,7 @@ function dadosPadrao(){
   var tplFds  = { id:"tpl_fds",  nome:"Fim de semana", tipo:"fim-de-semana", blocos:blocosFimDeSemana() };
   return {
     schemaVersion: SCHEMA,
-    config: { tema:"auto", corDestaque:"energia", rotulos:{}, metas:{aderencia:80}, modulosHoje:{tarefas:true,habitos:true,ordem:["tarefas","habitos"]}, ordemAbas:["hoje","refeicoes","amanha","painel","ajustes"], horariosPadrao:{}, nomeExibicao:"", bibliotecaSemeada:true, seedVersao:4 },
+    config: { tema:"auto", corDestaque:"energia", rotulos:{}, metas:{aderencia:80}, modulosHoje:{tarefas:true,habitos:true,ordem:["tarefas","habitos"]}, ordemAbas:["hoje","refeicoes","amanha","painel","ajustes"], horariosPadrao:{}, nomeExibicao:"", bibliotecaSemeada:true, seedVersao:5 },
     templates: [tplUtil, tplFds],
     atribuicaoSemanal: {"0":"tpl_fds","1":"tpl_util","2":"tpl_util","3":"tpl_util","4":"tpl_util","5":"tpl_util","6":"tpl_fds"},
     tarefas: [], habitos: [], biblioteca: bibliotecaPadrao().concat(itensNordestinos()).concat(itensPlanoNutri()),
@@ -958,6 +959,12 @@ function sanitizar(bruto){
     itensPlanoNutri().forEach(function(it){ if(!jaTem4[it.nome.toLowerCase()]) d.biblioteca.push(it); });
     d.config.seedVersao = 4;
   }
+  if((d.config.seedVersao||1) < 5){
+    d.biblioteca.forEach(function(it){
+      if(it.nome==="Plano: ovos com mamão e banana-da-terra" && it.tags.indexOf("transportavel")===-1) it.tags.push("transportavel");
+    });
+    d.config.seedVersao = 5;
+  }
   d.dias = ehObj(bruto.dias)?bruto.dias:{};
   Object.keys(d.dias).forEach(function(k){
     var dia = d.dias[k];
@@ -969,6 +976,7 @@ function sanitizar(bruto){
     dia.refeicoes.forEach(function(r){
       if(!ehObj(r)) return;
       if(!Array.isArray(r.itens)) r.itens=[];
+      if(!Array.isArray(r.trocasVistas)) r.trocasVistas=[];
       r.fixado = r.fixado===true;
       if(typeof r.obs!=="string") r.obs="";
     });
@@ -1816,6 +1824,7 @@ var TAGS = [
   {id:"plano",rotulo:"Plano nutri"}
 ];
 var ICONE_REF = {cafe:"☕",lanche_manha:"🍎",almoco:"🍽️",lanche_tarde:"🥜",jantar:"🍲",lanche_noite:"🫖"};
+var REF_CURTO = {cafe:"Café",lanche_manha:"L. manhã",almoco:"Almoço",lanche_tarde:"L. tarde",jantar:"Jantar",lanche_noite:"L. noite"};
 function rotuloTag(id){ for(var i=0;i<TAGS.length;i++) if(TAGS[i].id===id) return TAGS[i].rotulo; return id; }
 function itensAtivos(){ return estado.biblioteca.filter(function(x){return x.arquivado!==true;}); }
 function itemPorId(id){ for(var i=0;i<estado.biblioteca.length;i++) if(estado.biblioteca[i].id===id) return estado.biblioteca[i]; return null; }
@@ -1851,9 +1860,13 @@ function ranquear(tipo, iso, excluirIds){
   lista.forEach(function(it){
     var uso = ultimaVezUsado(it.id, iso);
     var dd = uso===null ? 7 : Math.min(7, Math.max(0, diffDias(iso, uso)));
+    var ehPlano = it.tags.indexOf("plano")!==-1;
+    // Nível 1: itens do plano do nutricionista, sempre primeiro (rotação interna por dd).
+    // Nível 2: o resto — entra pelo Trocar quando o plano esgota, ou quando o plano não é elegível.
+    it._nivel = ehPlano ? 1 : 0;
     it._score = dd*2 + (it.favorito?3:0) + (lanche && it.tags.indexOf("leve")!==-1 ? 1:0) + Math.random()*0.8;
   });
-  lista.sort(function(a,b){ return b._score - a._score; });
+  lista.sort(function(a,b){ return (b._nivel - a._nivel) || (b._score - a._score); });
   return lista;
 }
 function sugerirParaDia(iso, regenerar){
@@ -1878,15 +1891,26 @@ function trocarSugestao(iso, tipo){
   var dia = garantirDia(iso);
   var r = refDoDia(dia, tipo);
   if(!r) return;
-  var excluir = {};
-  (r.itens||[]).forEach(function(i){ if(i.itemId) excluir[i.itemId]=true; });
-  dia.refeicoes.forEach(function(o){ if(o!==r) (o.itens||[]).forEach(function(i){ if(i.itemId) excluir[i.itemId]=true; }); });
-  var rank = ranquear(tipo, iso, excluir);
+  if(!Array.isArray(r.trocasVistas)) r.trocasVistas = [];
+  function montarExcluir(comVistas){
+    var ex = {};
+    (r.itens||[]).forEach(function(i){ if(i.itemId) ex[i.itemId]=true; });
+    if(comVistas) r.trocasVistas.forEach(function(id){ ex[id]=true; });
+    dia.refeicoes.forEach(function(o){ if(o!==r) (o.itens||[]).forEach(function(i){ if(i.itemId) ex[i.itemId]=true; }); });
+    return ex;
+  }
+  var rank = ranquear(tipo, iso, montarExcluir(true));
+  if(!rank.length){
+    r.trocasVistas = []; // ciclo completo: recomeça pelo plano
+    rank = ranquear(tipo, iso, montarExcluir(false));
+  }
   if(!rank.length){ mostrarToast("Sem outra opção compatível na biblioteca", null); return; }
   var anterior = r.itens;
+  var vistasAntes = r.trocasVistas.slice();
+  (r.itens||[]).forEach(function(i){ if(i.itemId && r.trocasVistas.indexOf(i.itemId)===-1) r.trocasVistas.push(i.itemId); });
   r.itens = [{itemId:rank[0].id, nome:rank[0].nome, porcao:rank[0].porcao}];
   salvar();
-  mostrarToast("Sugestão trocada", function(){ r.itens = anterior; salvar(); renderPlanoAmanha(); renderRefeicoesHoje(); });
+  mostrarToast("Sugestão trocada", function(){ r.itens = anterior; r.trocasVistas = vistasAntes; salvar(); renderPlanoAmanha(); renderRefeicoesHoje(); });
 }
 function marcarRefeicao(iso, tipo, acao){
   var dia = garantirDia(iso);
@@ -2017,6 +2041,10 @@ function renderPicker(){
     if(q && it.nome.toLowerCase().indexOf(q)===-1) return;
     if(it.refeicoes && it.refeicoes.indexOf(pickerCtx.tipo)!==-1) compat.push(it); else outros.push(it);
   });
+  compat.sort(function(a,b){
+    var pa = a.tags.indexOf("plano")!==-1?1:0, pb = b.tags.indexOf("plano")!==-1?1:0;
+    return (pb-pa) || a.nome.localeCompare(b.nome);
+  });
   function linha(it){
     return '<div class="item-linha" data-add="'+esc(it.id)+'">'
       + '<div class="info"><div class="tit">'+(it.favorito?"⭐ ":"")+esc(it.nome)+'</div>'
@@ -2122,9 +2150,13 @@ function abrirFormItem(id, aoFechar){
 
 /* ---------- View: Biblioteca ---------- */
 var bibFiltro = "todos";
+var bibFiltroRef = "todas";
 function renderBiblioteca(){
   var alvo = document.getElementById("listaBiblioteca");
   if(!alvo) return;
+  var chipsRef = '<button data-r="todas" class="'+(bibFiltroRef==="todas"?"on":"")+'">Todas</button>'
+    + TIPOS_REFEICAO.map(function(t){ return '<button data-r="'+t.id+'" class="'+(bibFiltroRef===t.id?"on":"")+'">'+ICONE_REF[t.id]+' '+REF_CURTO[t.id]+'</button>'; }).join("");
+  document.getElementById("bibFiltrosRef").innerHTML = chipsRef;
   var chips = '<button data-f="todos" class="'+(bibFiltro==="todos"?"on":"")+'">Todos</button>'
     + '<button data-f="favoritos" class="'+(bibFiltro==="favoritos"?"on":"")+'">⭐</button>'
     + TAGS.map(function(t){ return '<button data-f="'+t.id+'" class="'+(bibFiltro===t.id?"on":"")+'">'+t.rotulo+'</button>'; }).join("");
@@ -2132,16 +2164,21 @@ function renderBiblioteca(){
   var q = document.getElementById("bibBusca").value.trim().toLowerCase();
   var lista = itensAtivos().filter(function(it){
     if(q && it.nome.toLowerCase().indexOf(q)===-1) return false;
+    if(bibFiltroRef!=="todas" && (!it.refeicoes || it.refeicoes.indexOf(bibFiltroRef)===-1)) return false;
     if(bibFiltro==="favoritos") return it.favorito===true;
     if(bibFiltro!=="todos") return it.tags.indexOf(bibFiltro)!==-1;
     return true;
-  }).sort(function(a,b){ return (b.favorito?1:0)-(a.favorito?1:0) || a.nome.localeCompare(b.nome); });
+  }).sort(function(a,b){
+    var pa = a.tags.indexOf("plano")!==-1?1:0, pb = b.tags.indexOf("plano")!==-1?1:0;
+    return (pb-pa) || (b.favorito?1:0)-(a.favorito?1:0) || a.nome.localeCompare(b.nome);
+  });
   var html = "";
   lista.forEach(function(it){
     html += '<div class="item-linha" data-id="'+esc(it.id)+'">'
       + '<button class="estrela'+(it.favorito?" on":"")+'" data-acao="fav" aria-label="Favorito" aria-pressed="'+(it.favorito===true)+'">⭐</button>'
       + '<div class="info"><div class="tit">'+esc(it.nome)+'</div>'
-      + '<div class="meta">'+esc(it.porcao||"")+(it.tags.length?' · '+it.tags.map(rotuloTag).join(", "):'')+'</div>'
+      + '<div class="meta"><b style="color:var(--c-refeicao)">'+((it.refeicoes&&it.refeicoes.length)?it.refeicoes.map(function(r){return REF_CURTO[r]||r;}).join(", "):"sem refeição")+'</b>'
+      +   (it.porcao?' · '+esc(it.porcao):'')+(it.tags.length?' · '+it.tags.map(rotuloTag).join(", "):'')+'</div>'
       + (it.notas?'<div class="meta" style="margin-top:2px; color:var(--ink-3)">'+esc(it.notas)+'</div>':'')
       + '</div><span class="mais">›</span></div>';
   });
@@ -2152,6 +2189,10 @@ document.getElementById("bibBusca").addEventListener("input", renderBiblioteca);
 document.getElementById("bibFiltros").addEventListener("click", function(ev){
   var b = ev.target.closest("button[data-f]");
   if(b){ bibFiltro = b.getAttribute("data-f"); renderBiblioteca(); }
+});
+document.getElementById("bibFiltrosRef").addEventListener("click", function(ev){
+  var b = ev.target.closest("button[data-r]");
+  if(b){ bibFiltroRef = b.getAttribute("data-r"); renderBiblioteca(); }
 });
 document.getElementById("listaBiblioteca").addEventListener("click", function(ev){
   var linha = ev.target.closest(".item-linha");
